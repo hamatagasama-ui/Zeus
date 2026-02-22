@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZEUS ОБМЕННИК | Система Трейда</title>
+    <style>
+        /* ГЛАВНЫЙ СТИЛЬ ZEUS */
+        body { 
+            background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; 
+            display: flex; flex-direction: column; align-items: center; 
+            justify-content: center; min-height: 100vh; margin: 0; 
+        }
+
+        h1 { 
+            color: #ffcc00; font-size: 3.5rem; text-shadow: 0 0 20px rgba(255, 204, 0, 0.4); 
+            margin-bottom: 20px; letter-spacing: 5px; 
+        }
+
+        /* ОКНО ВХОДА */
+        #auth-screen {
+            background: #111; padding: 40px; border: 2px solid #ffcc00;
+            border-radius: 15px; text-align: center; width: 350px;
+            box-shadow: 0 0 30px rgba(255, 204, 0, 0.1);
+        }
+
+        /* ГЛАВНОЕ МЕНЮ (скрыто до входа) */
+        #main-menu { 
+            display: none; flex-direction: column; gap: 15px; width: 320px; 
+        }
+
+        input, select { 
+            width: 100%; padding: 12px; margin: 10px 0; background: #222; 
+            color: #ffcc00; border: 1px solid #444; border-radius: 5px; box-sizing: border-box;
+        }
+
+        button { 
+            background: #ffcc00; color: #000; border: none; padding: 15px; 
+            font-weight: bold; cursor: pointer; border-radius: 5px; width: 100%;
+            transition: 0.3s; text-transform: uppercase;
+        }
+
+        button:hover { background: #fff; box-shadow: 0 0 15px #ffcc00; transform: translateY(-2px); }
+
+        .btn-logout { background: #333; color: #888; margin-top: 10px; font-size: 10px; padding: 5px; }
+
+        /* МОДАЛКА */
+        #modal { 
+            display: none; position: fixed; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); background: #111; 
+            padding: 30px; border: 3px solid #ffcc00; border-radius: 15px; 
+            z-index: 100; width: 380px;
+        }
+
+        .overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 50;
+        }
+
+        .close { color: #ffcc00; cursor: pointer; float: right; font-size: 24px; }
+    </style>
+</head>
+<body>
+
+    <h1>ZEUS</h1>
+
+    <!-- ЭКРАН РЕГИСТРАЦИИ -->
+    <div id="auth-screen">
+        <h2 style="color: #ffcc00;">ВХОД В СИСТЕМУ</h2>
+        <input type="email" id="user-email" placeholder="Ваша почта (Gmail)">
+        <button onclick="sendCode()">ПОЛУЧИТЬ КОД</button>
+        
+        <div id="code-section" style="display:none; margin-top:20px;">
+            <input type="text" id="verify-code" placeholder="Код из письма">
+            <button onclick="verifyCode()">ПОДТВЕРДИТЬ</button>
+        </div>
+    </div>
+
+    <!-- ГЛАВНОЕ МЕНЮ (ПОСЛЕ ВХОДА) -->
+    <div id="main-menu">
+        <button onclick="openModal()">⚡ СОЗДАТЬ ОБМЕН</button>
+        <button onclick="window.open('https://harmonious-clafoutis-720551.netlify.app', '_blank')">📱 ZEUS MESSENGER</button>
+        <button onclick="window.open('https://illustrious-entremet-d15046.netlify.app', '_blank')">📜 ПРАВИЛА</button>
+        
+        <p id="welcome-msg" style="text-align:center; color: #666; font-size: 13px; margin: 5px 0;"></p>
+        <button class="btn-logout" onclick="logout()">ВЫЙТИ ИЗ АККАУНТА</button>
+    </div>
+
+    <!-- ОКНО ОБМЕНА -->
+    <div class="overlay" id="overlay" onclick="closeModal()"></div>
+    <div id="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h3 style="color: #ffcc00;">НОВЫЙ ТРЕЙД</h3>
+        <label>Выберите игру:</label>
+        <select id="game"></select>
+        <label>Ваше предложение:</label>
+        <input type="text" id="offer" placeholder="Напр: 15 звезд TG / Акк Brawl">
+        <button onclick="sendOrder()">ОТПРАВИТЬ АДМИНУ</button>
+    </div>
+    <script>
+        // Проверяем, есть ли сохраненный email в памяти браузера
+        let currentUserEmail = localStorage.getItem('zeus_user_email') || '';
+
+        // Список игр (основные + автозаполнение до 300)
+        const baseGames = [
+            "Brawl Stars", "Roblox", "Stumble Guys", "Free Fire", "PUBG Mobile", 
+            "Genshin Impact", "Honkai: Star Rail", "Mobile Legends", "Clash of Clans", 
+            "Clash Royale", "Minecraft", "Fortnite", "Call of Duty Mobile", "Telegram Stars",
+            "Discord Nitro", "Steam Wallet", "PlayStation Plus", "Xbox Game Pass"
+        ];
+
+        window.onload = () => {
+            initGames();
+            // АВТО-ВХОД: Если почта уже есть, скрываем окно регистрации
+            if (currentUserEmail) {
+                showMainMenu();
+            }
+        };
+
+        function initGames() {
+            const select = document.getElementById('game');
+            baseGames.forEach(g => {
+                let opt = document.createElement('option');
+                opt.value = g; opt.innerText = "🔥 " + g;
+                select.appendChild(opt);
+            });
+            for(let i=1; i<=282; i++) {
+                let opt = document.createElement('option');
+                opt.value = `Service_${i}`; opt.innerText = `🕹️ Game/Service #${i+18}`;
+                select.appendChild(opt);
+            }
+        }
+
+        async function sendCode() {
+            const email = document.getElementById('user-email').value;
+            if(!email.includes('@')) return alert('Введите корректную почту');
+            const res = await fetch('/api/auth/send-code', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email })
+            });
+            if(res.ok) {
+                document.getElementById('code-section').style.display = 'block';
+                alert('Код отправлен!');
+            }
+        }
+
+        async function verifyCode() {
+            const email = document.getElementById('user-email').value;
+            const code = document.getElementById('verify-code').value;
+            const res = await fetch('/api/auth/verify', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email, code })
+            });
+            const data = await res.json();
+            if(data.success) {
+                // СОХРАНЯЕМ В ЛОКАЛЬНУЮ ПАМЯТЬ
+                localStorage.setItem('zeus_user_email', email);
+                currentUserEmail = email;
+                showMainMenu();
+            } else {
+                alert('Неверный код!');
+            }
+        }
+
+        function showMainMenu() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+            document.getElementById('welcome-msg').innerText = 'Аккаунт: ' + currentUserEmail;
+        }
+
+        function logout() {
+            localStorage.removeItem('zeus_user_email');
+            location.reload();
+        }
+
+        function openModal() { 
+            document.getElementById('modal').style.display = 'block'; 
+            document.getElementById('overlay').style.display = 'block';
+        }
+        function closeModal() { 
+            document.getElementById('modal').style.display = 'none'; 
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        async function sendOrder() {
+            const game = document.getElementById('game').value;
+            const offer = document.getElementById('offer').value;
+            if(!offer) return alert('Опишите предложение!');
+
+            const res = await fetch('/api/order', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ game, offer, email: currentUserEmail })
+            });
+            if(res.ok) {
+                alert('⚡ Заявка ушла боту!');
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
+
