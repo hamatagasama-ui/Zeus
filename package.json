@@ -1,0 +1,22 @@
+{
+  "name": "zeus-exchange",
+  "version": "1.0.0",
+  "description": "Zeus Messenger Exchange System",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.0",
+    "express": "^4.18.2",
+    "lokijs": "^1.5.12",
+    "mongoose": "^9.2.1",
+    "node-telegram-bot-api": "^0.67.0",
+    "nodemailer": "^8.0.1",
+    "nodemon": "^3.0.3"
+  }
+}
